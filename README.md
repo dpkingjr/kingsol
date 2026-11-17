@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kingsol Solitaire
 
-## Getting Started
+A Next.js solitaire collection with four games:
 
-First, run the development server:
+| Route       | Game     | Options                         |
+| ----------- | -------- | ------------------------------- |
+| `/klondike` | Klondike | Draw 1 / Draw 3                 |
+| `/freecell` | FreeCell | Auto-play to foundations on/off |
+| `/spider`   | Spider   | 1, 2 or 4 suits                 |
+| `/pyramid`  | Pyramid  | Pairs totalling 13, 3 passes    |
+
+Every game has undo (also Ctrl/⌘+Z), restart, new game, a move counter, a timer and a win screen.
+**Auto-save** (on by default, toggle in the toolbar) keeps each game's progress in the browser's localStorage, including undo history, timer and game options. Reopening a game picks up where you left off. Turning it off deletes all saved games.
+
+To move cards, click a card and then where it should go, drag and drop it, or double-click to send it to the best spot.
+
+## Running
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Layout
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `src/lib/cards.ts`: card model, seeded shuffle, shared stacking rules
+- `src/lib/useGame.ts`: game state hook (undo history, moves, timer, win detection, auto-save)
+- `src/lib/saveGame.ts`: localStorage save slots and the auto-save preference
+- `src/games/*.ts`: rules for each game as pure functions (`deal`, `move`, `isWon`, …)
+- `src/components/`: `CardView`, `Slot`, `Column` (nested so dragging a card drags the stack on it), `GameShell`
+- `src/app/<game>/`: route page plus the client component for each game
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Cards are drawn with CSS. There are no image assets, and card size scales with the viewport via `--cw`.
