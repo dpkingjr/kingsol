@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CardView, Slot } from "@/components/CardView";
 import { Column } from "@/components/Column";
 import { GameShell } from "@/components/GameShell";
 import { top } from "@/lib/cards";
+import { useDragDrop } from "@/lib/useDragDrop";
 import { useGame } from "@/lib/useGame";
 import {
   FSource,
@@ -30,7 +31,7 @@ export default function FreeCellGame() {
   const { state } = game;
   const [selected, setSelected] = useState<FSource | null>(null);
   const [autoPlayOn, setAutoPlayOn] = useState(true);
-  const dragSource = useRef<FSource | null>(null);
+  const drag = useDragDrop<FSource>();
 
   const shell = {
     title: "FreeCell",
@@ -99,11 +100,13 @@ export default function FreeCellGame() {
     setSelected(canDrag(s, src) ? src : null);
   };
 
-  const drop = (target: FTarget) => {
-    const src = dragSource.current;
-    dragSource.current = null;
-    if (src) tryMove(src, target);
-  };
+  /** Drop target for `target`; it glows while a legal move is dragged over it. */
+  const dropAt = (key: string, target: FTarget) =>
+    drag.target(
+      key,
+      (src) => move(s, src, target) !== null,
+      (src) => tryMove(src, target),
+    );
 
   return (
     <GameShell
@@ -122,12 +125,13 @@ export default function FreeCellGame() {
               className="cell"
               ariaLabel={`Free cell ${i + 1}`}
               onClick={() => (c ? clickSource({ pile: "cell", index: i }) : selected && tryMove(selected, { pile: "cell", index: i }))}
-              onDrop={() => drop({ pile: "cell", index: i })}
+              drop={dropAt(`c${i}`, { pile: "cell", index: i })}
+              dropOk={drag.hover === `c${i}`}
             >
               {c && (
                 <div
                   draggable
-                  onDragStart={() => (dragSource.current = { pile: "cell", index: i })}
+                  onDragStart={() => drag.start({ pile: "cell", index: i })}
                   onDoubleClick={() => commit(autoMove(s, { pile: "cell", index: i }))}
                 >
                   <CardView card={c} selected={selected?.pile === "cell" && selected.index === i} />
@@ -145,10 +149,11 @@ export default function FreeCellGame() {
               onClick={() =>
                 f.length ? clickSource({ pile: "foundation", index: i }) : selected && tryMove(selected, { pile: "foundation", index: i })
               }
-              onDrop={() => drop({ pile: "foundation", index: i })}
+              drop={dropAt(`f${i}`, { pile: "foundation", index: i })}
+              dropOk={drag.hover === `f${i}`}
             >
               {f.length > 0 && (
-                <div draggable onDragStart={() => (dragSource.current = { pile: "foundation", index: i })}>
+                <div draggable onDragStart={() => drag.start({ pile: "foundation", index: i })}>
                   <CardView card={top(f)!} selected={selected?.pile === "foundation" && selected.index === i} />
                 </div>
               )}
@@ -168,8 +173,9 @@ export default function FreeCellGame() {
             onCardClick={(ci) => clickSource({ pile: "tableau", index: col, cardIndex: ci })}
             onCardDoubleClick={(ci) => commit(autoMove(s, { pile: "tableau", index: col, cardIndex: ci }))}
             onEmptyClick={() => selected && tryMove(selected, { pile: "tableau", index: col })}
-            onDragStart={(ci) => (dragSource.current = { pile: "tableau", index: col, cardIndex: ci })}
-            onDrop={() => drop({ pile: "tableau", index: col })}
+            onDragStart={(ci) => drag.start({ pile: "tableau", index: col, cardIndex: ci })}
+            drop={dropAt(`t${col}`, { pile: "tableau", index: col })}
+            dropOk={drag.hover === `t${col}`}
           />
         ))}
       </div>

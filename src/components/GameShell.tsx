@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { formatTime } from "@/lib/useGame";
+import { formatTime } from "@/lib/format";
+import { useSessionUser } from "./SessionUser";
+import { UserMenu } from "./UserMenu";
 
 interface Props {
   title: string;
@@ -65,6 +67,8 @@ export function GameShell({
     return () => ro.disconnect();
   }, []);
 
+  const where = useSessionUser() ? "to your account" : "in this browser";
+
   return (
     <div className="game-page" style={{ "--header-h": `${headerHeight}px` } as React.CSSProperties}>
       <header className="toolbar" ref={headerRef}>
@@ -90,8 +94,8 @@ export function GameShell({
             className="check"
             title={
               autoSave
-                ? "Your game is saved in this browser after every move. Turning this off deletes saved games."
-                : "Save your game in this browser after every move and pick up where you left off."
+                ? `Your game is saved ${where} after every move. Turning this off deletes saved games.`
+                : `Save your game ${where} after every move and pick up where you left off.`
             }
           >
             <input type="checkbox" checked={autoSave} onChange={(e) => onToggleAutoSave(e.target.checked)} />
@@ -106,6 +110,7 @@ export function GameShell({
           <button className="primary" onClick={onNewGame}>
             New game
           </button>
+          <UserMenu />
         </div>
       </header>
 

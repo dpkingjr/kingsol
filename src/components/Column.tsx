@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/lib/cards";
+import type { DropHandlers } from "@/lib/useDragDrop";
 import { CardView } from "./CardView";
 
 interface Props {
@@ -12,7 +13,10 @@ interface Props {
   onCardDoubleClick?: (cardIndex: number) => void;
   onEmptyClick: () => void;
   onDragStart: (cardIndex: number) => void;
-  onDrop: () => void;
+  /** drop handlers from useDragDrop().target(...) */
+  drop: DropHandlers;
+  /** a card being dragged over this column could legally land here: highlight it */
+  dropOk?: boolean;
   ariaLabel: string;
 }
 
@@ -32,7 +36,8 @@ export function Column({
   onCardDoubleClick,
   onEmptyClick,
   onDragStart,
-  onDrop,
+  drop,
+  dropOk,
   ariaLabel,
 }: Props) {
   const down = cards.slice(0, -1).filter((c) => !c.faceUp).length;
@@ -72,14 +77,10 @@ export function Column({
 
   return (
     <div
-      className="column"
+      className={dropOk ? "column drop-ok" : "column"}
       style={{ minHeight: height, "--n-down": down, "--n-up": Math.max(up, 1) } as React.CSSProperties}
       onClick={onEmptyClick}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDrop();
-      }}
+      {...drop}
       role="group"
       aria-label={ariaLabel}
     >

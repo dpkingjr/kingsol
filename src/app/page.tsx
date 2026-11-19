@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { UserMenu } from "@/components/UserMenu";
+import { WithSessionUser } from "@/components/WithSessionUser";
+import { getCurrentUser } from "@/lib/auth";
+import { guestPlayAllowed } from "@/lib/settings";
 
 const GAMES = [
   {
@@ -35,9 +40,21 @@ export default function Home() {
   return (
     <main className="home table">
       <header className="home-header">
-        <h1>Kingsol Solitaire</h1>
-        <p>Choose a game.</p>
+        <div>
+          <h1>Kingsol Solitaire</h1>
+          <p>Choose a game.</p>
+        </div>
+        <div className="home-user">
+          <Suspense fallback={null}>
+            <WithSessionUser>
+              <UserMenu />
+            </WithSessionUser>
+          </Suspense>
+        </div>
       </header>
+      <Suspense fallback={null}>
+        <GuestNotice />
+      </Suspense>
       <ul className="game-grid">
         {GAMES.map((g) => (
           <li key={g.href}>
@@ -57,5 +74,15 @@ export default function Home() {
         ))}
       </ul>
     </main>
+  );
+}
+
+/** Tells signed-out visitors they need to sign in, while an admin has turned guest play off. */
+async function GuestNotice() {
+  if ((await getCurrentUser()) || (await guestPlayAllowed())) return null;
+  return (
+    <div className="notice home-notice" role="status">
+      Guest play is turned off. <Link href="/login">Sign in</Link> to play.
+    </div>
   );
 }

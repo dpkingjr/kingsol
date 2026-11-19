@@ -1,4 +1,5 @@
 import { Card, SUIT_SYMBOL, cardName, isRed, rankLabel } from "@/lib/cards";
+import type { DropHandlers } from "@/lib/useDragDrop";
 import { FaceArt } from "./FaceArt";
 
 interface Props {
@@ -45,27 +46,21 @@ interface SlotProps {
   label?: string;
   children?: React.ReactNode;
   onClick?: () => void;
-  onDrop?: () => void;
+  /** drop handlers from useDragDrop().target(...) */
+  drop?: DropHandlers;
   className?: string;
-  highlight?: boolean;
+  /** a card being dragged over this pile could legally land here: highlight it */
+  dropOk?: boolean;
   ariaLabel?: string;
 }
 
 /** An empty-pile placeholder / container that accepts clicks and drops. */
-export function Slot({ label, children, onClick, onDrop, className, highlight, ariaLabel }: SlotProps) {
+export function Slot({ label, children, onClick, drop, className, dropOk, ariaLabel }: SlotProps) {
   return (
     <div
-      className={["slot", className, highlight ? "drop-ok" : ""].filter(Boolean).join(" ")}
+      className={["slot", className, dropOk ? "drop-ok" : ""].filter(Boolean).join(" ")}
       onClick={onClick}
-      onDragOver={onDrop ? (e) => e.preventDefault() : undefined}
-      onDrop={
-        onDrop
-          ? (e) => {
-              e.preventDefault();
-              onDrop();
-            }
-          : undefined
-      }
+      {...drop}
       role={onClick ? "button" : undefined}
       aria-label={ariaLabel}
     >

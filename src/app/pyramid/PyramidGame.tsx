@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CardView, Slot } from "@/components/CardView";
 import { GameShell } from "@/components/GameShell";
 import { top } from "@/lib/cards";
+import { useDragDrop } from "@/lib/useDragDrop";
 import { useGame } from "@/lib/useGame";
 import {
   MAX_PASSES,
@@ -29,7 +30,7 @@ export default function PyramidGame() {
   const game = useGame<PyramidState>("pyramid", deal, isWon);
   const { state } = game;
   const [selected, setSelected] = useState<PSource | null>(null);
-  const dragSource = useRef<PSource | null>(null);
+  const drag = useDragDrop<PSource>();
 
   const shell = {
     title: "Pyramid",
@@ -88,14 +89,16 @@ export default function PyramidGame() {
     setSelected(src);
   };
 
-  const drop = (target: PSource) => {
-    const src = dragSource.current;
-    dragSource.current = null;
-    if (src) {
-      setSelected(null);
-      game.apply(removePair(s, src, target));
-    }
-  };
+  /** Drop target on a card: it glows while the dragged card would pair with it (ranks total 13). */
+  const dropOn = (key: string, target: PSource) =>
+    drag.target(
+      key,
+      (src) => removePair(s, src, target) !== null,
+      (src) => {
+        setSelected(null);
+        game.apply(removePair(s, src, target));
+      },
+    );
 
   const wasteTop = top(s.waste);
   const stockLabel =
@@ -128,7 +131,7 @@ export default function PyramidGame() {
               return (
                 <div
                   key={card.id}
-                  className={`pyr-card${exposed ? " exposed" : ""}`}
+                  className={`pyr-card${exposed ? " exposed" : ""}${drag.hover === `p${index}` ? " drop-ok" : ""}`}
                   style={{
                     left: `calc((${pos} - ${row} / 2) * var(--cw) * 1.1 + 3 * var(--cw) * 1.1)`,
                     top: `calc(${row} * var(--ch) * 0.5)`,
@@ -136,12 +139,8 @@ export default function PyramidGame() {
                   }}
                   onClick={() => click(src)}
                   draggable={exposed}
-                  onDragStart={() => (dragSource.current = src)}
-                  onDragOver={(e) => exposed && e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (exposed) drop(src);
-                  }}
+                  onDragStart={() => drag.start(src)}
+                  {...(exposed ? dropOn(`p${index}`, src) : {})}
                 >
                   <CardView card={card} selected={same(selected, src)} dimmed={!exposed} />
                 </div>
@@ -166,14 +165,11 @@ export default function PyramidGame() {
           <Slot ariaLabel="Waste">
             {wasteTop && (
               <div
+                className={drag.hover === "w" ? "drop-ok" : undefined}
                 onClick={() => click({ pile: "waste" })}
                 draggable
-                onDragStart={() => (dragSource.current = { pile: "waste" })}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  drop({ pile: "waste" });
-                }}
+                onDragStart={() => drag.start({ pile: "waste" })}
+                {...dropOn("w", { pile: "waste" })}
               >
                 <CardView card={wasteTop} selected={selected?.pile === "waste"} />
               </div>

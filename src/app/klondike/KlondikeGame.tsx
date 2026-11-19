@@ -5,6 +5,7 @@ import { CardView, Slot } from "@/components/CardView";
 import { Column } from "@/components/Column";
 import { GameShell } from "@/components/GameShell";
 import { top } from "@/lib/cards";
+import { useDragDrop } from "@/lib/useDragDrop";
 import { useGame } from "@/lib/useGame";
 import {
   DrawCount,
@@ -34,7 +35,7 @@ export default function KlondikeGame() {
   // Kept in the game state, so a restored save brings its own draw mode back.
   const drawCount: DrawCount = state?.drawCount ?? 1;
   const [selected, setSelected] = useState<KSource | null>(null);
-  const dragSource = useRef<KSource | null>(null);
+  const drag = useDragDrop<KSource>();
   const finishing = useRef(false);
 
   if (!state) return <GameShell {...shellProps()}>{null}</GameShell>;
@@ -121,11 +122,13 @@ export default function KlondikeGame() {
     apply(autoMove(s, src));
   };
 
-  const drop = (target: KTarget) => {
-    const src = dragSource.current;
-    dragSource.current = null;
-    if (src) tryMove(src, target);
-  };
+  /** Drop target for `target`; it glows while a legal move is dragged over it. */
+  const dropAt = (key: string, target: KTarget) =>
+    drag.target(
+      key,
+      (src) => move(s, src, target) !== null,
+      (src) => tryMove(src, target),
+    );
 
   const runAutoFinish = () => {
     if (finishing.current) return;
@@ -174,7 +177,7 @@ export default function KlondikeGame() {
                   className="waste-card"
                   style={{ left: `calc(${i} * var(--fan))` }}
                   draggable={isTop}
-                  onDragStart={() => (dragSource.current = { pile: "waste" })}
+                  onDragStart={() => drag.start({ pile: "waste" })}
                   onClick={isTop ? () => clickSource({ pile: "waste" }) : undefined}
                   onDoubleClick={isTop ? () => dblClick({ pile: "waste" }) : undefined}
                 >
@@ -190,13 +193,14 @@ export default function KlondikeGame() {
               key={i}
               label="A"
               onClick={() => (f.length ? clickSource({ pile: "foundation", index: i }) : selected && tryMove(selected, { pile: "foundation", index: i }))}
-              onDrop={() => drop({ pile: "foundation", index: i })}
+              drop={dropAt(`f${i}`, { pile: "foundation", index: i })}
+              dropOk={drag.hover === `f${i}`}
               ariaLabel={`Foundation ${i + 1}`}
             >
               {f.length > 0 && (
                 <div
                   draggable
-                  onDragStart={() => (dragSource.current = { pile: "foundation", index: i })}
+                  onDragStart={() => drag.start({ pile: "foundation", index: i })}
                 >
                   <CardView
                     card={top(f)!}
@@ -220,8 +224,9 @@ export default function KlondikeGame() {
             onCardClick={(ci) => clickSource({ pile: "tableau", index: col, cardIndex: ci })}
             onCardDoubleClick={(ci) => dblClick({ pile: "tableau", index: col, cardIndex: ci })}
             onEmptyClick={() => selected && tryMove(selected, { pile: "tableau", index: col })}
-            onDragStart={(ci) => (dragSource.current = { pile: "tableau", index: col, cardIndex: ci })}
-            onDrop={() => drop({ pile: "tableau", index: col })}
+            onDragStart={(ci) => drag.start({ pile: "tableau", index: col, cardIndex: ci })}
+            drop={dropAt(`t${col}`, { pile: "tableau", index: col })}
+            dropOk={drag.hover === `t${col}`}
           />
         ))}
       </div>

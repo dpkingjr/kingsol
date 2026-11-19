@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CardView, Slot } from "@/components/CardView";
 import { Column } from "@/components/Column";
 import { GameShell } from "@/components/GameShell";
 import { SUIT_SYMBOL, isRed } from "@/lib/cards";
+import { useDragDrop } from "@/lib/useDragDrop";
 import { useGame } from "@/lib/useGame";
 import { SSource, SpiderState, SuitCount, autoMove, canDrag, deal, dealRow, isWon, move } from "@/games/spider";
 
@@ -15,7 +16,7 @@ export default function SpiderGame() {
   const suitCount: SuitCount = state?.suitCount ?? 1;
   const [selected, setSelected] = useState<SSource | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const dragSource = useRef<SSource | null>(null);
+  const drag = useDragDrop<SSource>();
 
   useEffect(() => {
     if (!message) return;
@@ -89,11 +90,13 @@ export default function SpiderGame() {
     setSelected(canDrag(s, src) ? src : null);
   };
 
-  const drop = (target: number) => {
-    const src = dragSource.current;
-    dragSource.current = null;
-    if (src) tryMove(src, target);
-  };
+  /** Drop target for column `col`; it glows while a legal move is dragged over it. */
+  const dropAt = (col: number) =>
+    drag.target(
+      `t${col}`,
+      (src) => move(s, src, col) !== null,
+      (src) => tryMove(src, col),
+    );
 
   const dealsLeft = s.stock.length / 10;
 
@@ -145,8 +148,9 @@ export default function SpiderGame() {
               game.apply(autoMove(s, { index: col, cardIndex: ci }));
             }}
             onEmptyClick={() => selected && tryMove(selected, col)}
-            onDragStart={(ci) => (dragSource.current = { index: col, cardIndex: ci })}
-            onDrop={() => drop(col)}
+            onDragStart={(ci) => drag.start({ index: col, cardIndex: ci })}
+            drop={dropAt(col)}
+            dropOk={drag.hover === `t${col}`}
           />
         ))}
       </div>
