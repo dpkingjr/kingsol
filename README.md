@@ -40,7 +40,19 @@ npm run dev                           # http://localhost:3000
 
 `npm run user:admin -- <username>` also recovers access: on an existing account it sets a new password, makes it an admin and unlocks it. The password can be given non-interactively with `KINGSOL_PASSWORD=...`.
 
-To serve under a sub-path such as `https://davidkingjr.com/kingsol`, put `NEXT_PUBLIC_BASE_PATH=/kingsol` in `.env.production.local` on the server before building (both `next build` and `next start` read it), and add the NGINX location block in [deploy/nginx/kingsol.conf](deploy/nginx/kingsol.conf) to the site's existing `server` block.
+To serve under a sub-path such as `https://davidkingjr.com/kingsol`, put `NEXT_PUBLIC_BASE_PATH=/kingsol` in `.env.production.local` on the server before building (both `next build` and `next start` read it), and install the NGINX config [deploy/nginx/kingsol.conf](deploy/nginx/kingsol.conf) by symlink:
+
+```bash
+# once per server: a folder for the site's apps, included from the existing davidkingjr.com server block
+sudo mkdir -p /etc/nginx/davidkingjr.com.d
+#   ...and inside that server { } block add:  include /etc/nginx/davidkingjr.com.d/*.conf;
+
+# install or update Kingsol
+sudo ln -sfn "$PWD/deploy/nginx/kingsol.conf" /etc/nginx/davidkingjr.com.d/kingsol.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+It isn't symlinked into `conf.d` because a `/kingsol` path has to live inside the domain's existing `server` block; `conf.d` files load at the `http` level.
 
 For production, set `DATABASE_URL` (and `DATABASE_SSL=true` if your host requires TLS), run `npm run db:migrate`, then `npm run build && npm start` behind HTTPS. Session cookies are Secure in production; set `SESSION_COOKIE_SECURE=false` only when deliberately serving over plain HTTP.
 
