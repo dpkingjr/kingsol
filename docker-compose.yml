@@ -1,14 +1,32 @@
-# Local PostgreSQL for development: `docker compose up -d`
-# Matches DATABASE_URL in .env.example.
+# Kingsol Solitaire with PostgreSQL.
+#
+#   Database only (for `npm run dev`):  docker compose up -d db
+#   Whole app in containers:            docker compose up -d --build
+#   First admin account:                docker compose run --rm migrate npm run user:admin -- admin "Admin"
+#
+# Settings come from the environment or a `.env` file next to this file (git-ignored), e.g.:
+#
+#   POSTGRES_PASSWORD=change-me        # used when the database volume is first created
+#   KINGSOL_PORT=3000                  # host port for the app (bound to 127.0.0.1 only)
+#   KINGSOL_BASE_PATH=/kingsol         # when served at https://example.com/kingsol (see deploy/nginx)
+#   SESSION_COOKIE_SECURE=true         # "false" only when serving over plain HTTP, not localhost
+#
+# POSTGRES_PASSWORD only takes effect when the kingsol-pg volume is created; to change it later,
+# run ALTER USER in psql. KINGSOL_BASE_PATH is built into the image: rebuild (`--build`) after changing it.
+
+x-database-url: &database-url postgres://kingsol:${POSTGRES_PASSWORD:-kingsol}@db:5432/kingsol
+
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: kingsol
-      POSTGRES_PASSWORD: kingsol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kingsol}
       POSTGRES_DB: kingsol
     ports:
-      - "54329:5432"
+      # for local development (`npm run dev`, matches .env.example); the app container doesn't need it
+      - "127.0.0.1:54329:5432"
     volumes:
       - kingsol-pg:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +34,51 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+  # One-shot: applies db/schema.sql (idempotent) before the app starts, then exits.
+  # Also the place to run the admin CLI, which needs the build tools this stage has.
+  migrate:
+    build:
+      context: .
+      target: build
+      args:
+        NEXT_PUBLIC_BASE_PATH: ${KINGSOL_BASE_PATH:-}
+    image: kingsol-tools
+    command: ["node", "--import", "tsx", "scripts/migrate.ts"]
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_BASE_PATH: ${KINGSOL_BASE_PATH:-}
+    image: kingsol-app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: *database-url
+      DATABASE_SSL: "false"
+      NEXT_PUBLIC_BASE_PATH: ${KINGSOL_BASE_PATH:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+    ports:
+      # localhost only: put NGINX (deploy/nginx/kingsol.conf) in front for public HTTPS access
+      - "127.0.0.1:${KINGSOL_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000${KINGSOL_BASE_PATH:-}/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 volumes:
   kingsol-pg:

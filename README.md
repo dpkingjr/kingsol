@@ -44,6 +44,17 @@ To serve under a sub-path such as `https://davidkingjr.com/kingsol`, put `NEXT_P
 
 For production, set `DATABASE_URL` (and `DATABASE_SSL=true` if your host requires TLS), run `npm run db:migrate`, then `npm run build && npm start` behind HTTPS. Session cookies are Secure in production; set `SESSION_COOKIE_SECURE=false` only when deliberately serving over plain HTTP.
 
+### Docker
+
+`docker-compose.yml` runs the whole app: PostgreSQL (`db`), a one-shot `migrate` service that applies the schema, and the app itself (`app`, a Next.js standalone image running as a non-root user, health-checked at `/api/health`).
+
+```bash
+docker compose up -d --build                                      # app on http://127.0.0.1:3000
+docker compose run --rm migrate npm run user:admin -- admin "Admin"   # first admin (prompts for a password)
+```
+
+Settings go in a `.env` file next to `docker-compose.yml` (git-ignored): `POSTGRES_PASSWORD`, `KINGSOL_PORT` (host port, default 3000, bound to localhost only), `KINGSOL_BASE_PATH` (e.g. `/kingsol` behind the NGINX config; rebuild after changing it) and `SESSION_COOKIE_SECURE`. The comments at the top of `docker-compose.yml` explain each one.
+
 ## Layout
 
 - `src/lib/cards.ts`: card model, seeded shuffle, shared stacking rules
